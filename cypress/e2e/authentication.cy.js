@@ -123,4 +123,42 @@ describe('Authentication & Authorization Senaryoları', () => {
         });
     });
 
+    it('Logout (Güvenli Çıkış) ve yetkisiz sayfalara geri dönüş denemesi', () => {
+        // 1. Veritabanından aktif kullanıcımızı çekip hızlıca login oluyoruz
+        cy.task('queryDb', 'SELECT email, password FROM users WHERE status="active"').then((users) => {
+            const user = users[0];
+            cy.apiLogin(user.email, user.password);
+
+            // 2. Anasayfaya git ve girişin başarılı olduğunu onayla
+            cy.visit('/');
+            cy.contains('.nav-link', 'Settings').should('be.visible');
+
+            // 3. Ayarlar sayfasına git ve "Logout" butonuna tıkla
+            cy.visit('/settings');
+            cy.get('.btn-outline-danger').contains('logout').click();
+
+            // 4. UI Doğrulaması: Sistemin bizi anasayfaya attığını ve misafir menüsünün geldiğini onayla
+            cy.contains('.nav-link', 'Sign in').should('be.visible');
+            cy.contains('.nav-link', 'Settings').should('not.exist');
+
+            // 5. BACKEND / STATE Doğrulaması: Token gerçekten silindi mi?
+            // Sadece arayüze güvenmiyoruz, tarayıcının hafızasını kontrol ediyoruz
+            cy.window().then((win) => {
+                const token = win.localStorage.getItem('jwtToken');
+                expect(token).to.be.null; // Token tamamen yok edilmiş olmalı
+            });
+
+            // 6. SIZMA DENEMESİ (Back Navigation / Forced Routing)
+            // Kullanıcı çıkış yaptı ama adres çubuğuna zorla yetki gerektiren bir sayfa yazarsa ne olur?
+            cy.visit('/settings');
+
+            // 7. Güvenlik Doğrulaması: Sistem bu yetkisiz girişi engellemeli!
+            // Conduit uygulaması, yetkisiz girişleri anasayfaya (veya login'e) yönlendirir
+            cy.url().should('not.include', '/settings');
+
+            // Ayarlar formunun ekranda kesinlikle render edilmediğini (çizilmediğini) doğrula
+            cy.get('input[placeholder="URL of profile picture"]').should('not.exist');
+        });
+    });
+
 });
