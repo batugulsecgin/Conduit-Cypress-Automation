@@ -154,18 +154,22 @@ describe('User Management (Kullanıcı Yönetimi) Senaryoları', () => {
             const user = users[0];
             cy.apiLogin(user.email, user.password);
 
-            // 2. Rastgele bir yazar bulmak için Global Feed'e git ve ilk makalenin yazarına tıkla
-            cy.visit('/');
-            cy.contains('Global Feed').click();
-            cy.get('.article-meta .author').first().click();
 
-            // 3. Ağ isteklerini dinlemeye al (Follow ve Unfollow API call'ları)
+            // TEST İZOLASYONU
+            // Anasayfadan rastgele birine tıklamak yerine, doğrudan
+            // "Artem Bondar" gibi başka bir kullanıcının profiline gidiyoruz!
+            cy.visit('/profile/Artem%20Bondar');
+
+            // 3. Ağ isteklerini dinlemeye al (Follow/Unfollow API'leri)
             cy.intercept('POST', '**/api/profiles/*/follow').as('followUser');
             cy.intercept('DELETE', '**/api/profiles/*/follow').as('unfollowUser');
 
-            // 4. Takip Et / Bırak Butonunu (action-btn) bul ve dinamik state (durum) kontrolü yap
-            cy.get('button.action-btn').then(($btn) => {
+            // 4. Takip Et / Bırak Butonunu (action-btn) bul ve dinamik state kontrolü yap
+            // Artık başkasının profilinde olduğumuz için bu buton %100 ekranda var!
+            cy.get('button.action-btn').should('be.visible').then(($btn) => {
                 const buttonText = $btn.text();
+
+                // ... (Testin geri kalanındaki if/else mantığı aynı kalacak) ...
 
                 // Eğer kullanıcı zaten takip ediliyorsa (Unfollow yazıyorsa), önce takibi bırakarak sistemi sıfırla
                 if (buttonText.includes('Unfollow')) {

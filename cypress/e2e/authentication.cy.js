@@ -83,26 +83,27 @@ describe('Authentication & Authorization Senaryoları', () => {
     });
 
     it('Başka kullanıcının makalesini silme denemesi (Unauthorized / IDOR)', () => {
-        // 1. Veritabanından giriş yapıyoruz
         cy.task('queryDb', 'SELECT email, password FROM users WHERE status="active"').then((users) => {
             const user = users[0];
             cy.apiLogin(user.email, user.password);
 
-            // 2. Anasayfaya git ve makaleye tıkla
-            cy.visit('/');
-            cy.contains('Global Feed').click();
-            cy.get('.preview-link').first().click();
-
             // ==========================================
-            // GUARD (KORUMA): Sayfanın tam yüklendiğinden ve URL'in değiştiğinden emin ol!
+            // TEST İZOLASYONU (Samanlıkta iğne aramıyoruz!)
+            // Global Feed test verilerimizle dolduğu için, doğrudan
+            // başkasının (Artem Bondar) profil sayfasına gidiyoruz.
+            // ==========================================
+            cy.visit('/profile/Artem%20Bondar');
+
+            // Profildeki makalelerden ilkine tıkla (Bunun Artem'e ait olduğundan artık %100 eminiz)
+            cy.get('.article-preview').first().find('.preview-link').click();
+
+            // GUARD: Makale detay sayfasının tam yüklendiğinden emin ol!
             cy.url().should('include', '/article/');
-            // ==========================================
 
-            // 3. UI (Arayüz) Doğrulaması: Makale yüklendiğine göre "Delete Article" butonu olmadığını onayla
+            // 3. UI (Arayüz) Doğrulaması: Başkasının makalesinde "Delete Article" butonu asla görünmemeli
             cy.contains('button', 'Delete Article').should('not.exist');
 
-            // 4. BACKEND (API) Doğrulaması
-            // Artık URL'in doğru olduğundan %100 eminiz, "slug" değerini güvenle çekebiliriz
+            // 4. BACKEND (API) Doğrulaması: Zorla silmeye çalışırsak sunucu reddetmeli!
             cy.url().then((url) => {
                 const slug = url.split('/article/')[1];
 
@@ -115,7 +116,7 @@ describe('Authentication & Authorization Senaryoları', () => {
                         headers: { Authorization: `Token ${token}` },
                         failOnStatusCode: false
                     }).then((response) => {
-                        // Sunucunun 401 veya 403 ile bu işlemi reddettiğini onayla
+                        // 5. Güvenlik Doğrulaması: Sunucu 403 veya 401 ile silmeyi reddetmeli
                         expect(response.status).to.be.oneOf([401, 403]);
                     });
                 });
