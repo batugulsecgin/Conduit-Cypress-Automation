@@ -39,6 +39,24 @@ The framework handles real-world user journeys, including DOM traversal, liking 
 
 **Run tests in Headless Mode => npx cypress run
 
+### 7. 🗄️ Database Setup & Reset (Important!)
+**Since this framework relies heavily on data-driven and database-integrated tests, ensuring your local SQLite database has the correct initial state is crucial. If tests fail due to missing records (e.g., after running data deletion tests), reset your database by executing the following SQL script in your database IDE (like DataGrip):
+
+```sql
+-- 1. Clear existing comments to avoid duplicates
+DELETE FROM test_comments;
+
+-- 2. Seed required data for standard E2E tests
+INSERT INTO test_comments (comment_body, scenario_type) 
+VALUES ('Bu yorum Cypress ve SQLite kullanılarak veritabanından dinamik olarak çekilmiştir.', 'positive_test');
+
+-- 3. Seed data for Data-Driven Testing (DDT)
+INSERT INTO test_comments (comment_body, scenario_type) VALUES 
+('Standart kısa bir test yorumu.', 'ddt_normal'),
+('🚀 Emojiler içeren 🎉 ve özel karakterler (%#+) barındıran modern bir yorum.', 'ddt_special_chars'),
+('Bu yorum alanı, sistemin sınırlarını zorlamak amacıyla bilerek çok uzun bir metin verilerek test edilmektedir.', 'ddt_long_text'),
+('1234567890', 'ddt_numeric');
+```
 ## 🚀 Project Structure
 ```text
 ├── cypress/
