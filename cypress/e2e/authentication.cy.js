@@ -39,4 +39,88 @@ describe('Authentication & Authorization Senaryoları', () => {
         cy.url().should('include', '/login');
     });
 
+    it('Boş form alanlarıyla login denemesi (Validation Test)', () => {
+        // 1. UI Etkileşimi: Login sayfasına git
+        cy.visit('/login');
+
+        // 2. UI Doğrulaması: Hiçbir şey yazmadığımız için "Sign in" butonunun pasif (disabled) durumda olduğunu teyit et
+        // Bu sayede uygulamanın Frontend korumasının çalıştığını kanıtlıyoruz.
+        cy.get('button[type="submit"]').should('be.disabled');
+
+        // (Opsiyonel Bilgi: Eğer Cypress ile bu engeli zorla aşıp butona tıklamak isteseydik
+        // cy.get('button').click({ force: true }) kullanabilirdik. Ancak doğru mühendislik yaklaşımı mevcut korumayı test etmektir.)
+
+        // 3. Güvenlik Doğrulaması: Sistemin bizi içeri almadığını, URL'in değişmediğini teyit et
+        cy.url().should('include', '/login');
+    });
+
+    it('Token expires sonrası işlem denemesi (Session timeout)', () => {
+        // 1. Veritabanından aktif kullanıcımızı çekip giriş yapıyoruz
+        cy.task('queryDb', 'SELECT email, password FROM users WHERE status="active"').then((users) => {
+            const user = users[0];
+            cy.apiLogin(user.email, user.password);
+
+            // 2. Anasayfaya git ve giriş yaptığımızı onayla (Settings butonu görünmeli)
+            cy.visit('/');
+            cy.contains('.nav-link', 'Settings').should('be.visible');
+
+            // 3. CHAOS ENGINEERING (Session Drop)
+            // Token'ı bozmak veya sahte hata atmak yerine, token'ı hafızadan tamamen SİLİYORUZ.
+            // Bu hamle, süresi dolmuş ve tarayıcı tarafından temizlenmiş bir oturumu kusursuz simüle eder.
+            cy.clearLocalStorage();
+
+            // 4. İşlem Denemesi: Sayfayı yenileyerek uygulamanın yetkisiz durumu fark etmesini sağla
+            cy.reload();
+
+            // 5. UI ve State Doğrulaması:
+            // Uygulama çökmeden, bizi güvenli bir şekilde "Misafir" (Guest) moduna geçirdi mi?
+            cy.contains('.nav-link', 'Sign in').should('be.visible');
+            cy.contains('.nav-link', 'Sign up').should('be.visible');
+
+            // Kullanıcıya özel olan Settings (Ayarlar) sekmesinin artık OLMADIĞINI doğrula
+            cy.contains('.nav-link', 'Settings').should('not.exist');
+        });
+    });
+
+    it('Başka kullanıcının makalesini silme denemesi (Unauthorized / IDOR)', () => {
+        // 1. Veritabanından giriş yapıyoruz
+        cy.task('queryDb', 'SELECT email, password FROM users WHERE status="active"').then((users) => {
+            const user = users[0];
+            cy.apiLogin(user.email, user.password);
+
+            // 2. Anasayfaya git ve makaleye tıkla
+            cy.visit('/');
+            cy.contains('Global Feed').click();
+            cy.get('.preview-link').first().click();
+
+            // ==========================================
+            // GUARD (KORUMA): Sayfanın tam yüklendiğinden ve URL'in değiştiğinden emin ol!
+            cy.url().should('include', '/article/');
+            // ==========================================
+
+            // 3. UI (Arayüz) Doğrulaması: Makale yüklendiğine göre "Delete Article" butonu olmadığını onayla
+            cy.contains('button', 'Delete Article').should('not.exist');
+
+            // 4. BACKEND (API) Doğrulaması
+            // Artık URL'in doğru olduğundan %100 eminiz, "slug" değerini güvenle çekebiliriz
+            cy.url().then((url) => {
+                const slug = url.split('/article/')[1];
+
+                cy.window().then((win) => {
+                    const token = win.localStorage.getItem('jwtToken');
+
+                    cy.request({
+                        method: 'DELETE',
+                        url: `https://conduit-api.bondaracademy.com/api/articles/${slug}`,
+                        headers: { Authorization: `Token ${token}` },
+                        failOnStatusCode: false
+                    }).then((response) => {
+                        // Sunucunun 401 veya 403 ile bu işlemi reddettiğini onayla
+                        expect(response.status).to.be.oneOf([401, 403]);
+                    });
+                });
+            });
+        });
+    });
+
 });
