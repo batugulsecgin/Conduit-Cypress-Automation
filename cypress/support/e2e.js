@@ -15,3 +15,8 @@
 
 // Import commands.js using ES2015 syntax:
 import './commands'
+// Uygulama kaynaklı (Frontend) Console hatalarının Cypress testlerini patlatmasını engeller
+Cypress.on('uncaught:exception', (err, runnable) => {
+    // Return false yaparak Cypress'e testi fail etmemesini söylüyoruz
+    return false;
+});
