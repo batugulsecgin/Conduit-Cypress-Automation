@@ -30,7 +30,23 @@ The framework handles real-world user journeys, including DOM traversal, liking 
 - **Bypassing UI:** A custom command (`cy.apiLogin`) intercepts the authentication flow by sending a direct `POST` request to the backend API. The received JWT token is seamlessly injected into the browser's `localStorage`.
 - **Network Interception:** Using `cy.intercept()`, the framework spies on network requests (e.g., `POST /api/articles/*/comments`), asserting that the backend responds with a `200 OK` status before verifying the UI elements, ensuring the application functions flawlessly across all layers.
 
-### 6. ⚙️ How to Run Locally
+### 6. Security & Vulnerability Testing (Defensive QA)
+- **IDOR (Insecure Direct Object Reference):** Validates that users cannot delete articles belonging to others, expecting strict `401/403` backend responses.
+- **XSS Prevention:** Injects malicious `<script>` payloads into comment bodies and verifies DOM sanitization using `cy.stub(win, 'alert')`.
+- **Unsupported Methods:** Attempts backend-door bypasses (e.g., sending `PUT` requests to endpoints without UI edit buttons) to ensure APIs return `404/405`.
+
+### 7. Performance & Stress Testing
+- **Concurrent API Requests:** Bypasses the standard Cypress command queue by utilizing native `window.fetch` and `Promise.all` to bombard the server with 15 simultaneous requests, verifying `200 OK` stability.
+- **Rate Limiting (Spam Bot Simulation):** Fires rapid, sequential comments to trigger and validate `429 Too Many Requests` API protections.
+- **Payload Stress & Self-Cleanup:** Generates and injects a 10MB+ string into the application. If the server accepts it (Storage Limit vulnerability), the framework executes an immediate `DELETE` request to prevent DOM crashes in subsequent tests.
+- **3G Network Throttling:** Intercepts network responses and applies a 3000ms delay (`res.setDelay`) to validate Frontend UX loading states (Skeleton/Spinners).
+
+### 8. Advanced Network Mocking & State Management
+- **Response Manipulation:** Intercepts live server responses (`req.continue()`) to inject mock data on the fly, preventing "Test Data Pollution" without breaking E2E flows.
+- **Pagination Math:** Mocks backend `articlesCount` to force the UI to render pagination controls, then intercepts the `offset` parameter to mathematically validate routing logic.
+- **Ghost Data / Cache Invalidation:** Deletes entities and utilizes `cy.reload()` to ensure aggressive Single Page Application (SPA) caches don't resurrect deleted data.
+
+### 9. ⚙️ How to Run Locally
 **Clone the repository => git clone <your-repository-url>
 
 **Install dependencies => npm install
@@ -39,7 +55,7 @@ The framework handles real-world user journeys, including DOM traversal, liking 
 
 **Run tests in Headless Mode => npx cypress run
 
-### 7. 🗄️ Database Setup & Reset (Important!)
+### 10. 🗄️ Database Setup & Reset (Important!)
 **Since this framework relies heavily on data-driven and database-integrated tests, ensuring your local SQLite database has the correct initial state is crucial. If tests fail due to missing records (e.g., after running data deletion tests), reset your database by executing the following SQL script in your database IDE (like DataGrip):
 
 ```sql
@@ -61,13 +77,15 @@ INSERT INTO test_comments (comment_body, scenario_type) VALUES
 ```text
 ├── cypress/
 │   ├── e2e/
-│   │   ├── apiCrud.cy.js             # Pure API tests (CRUD operations)
-│   │   ├── backendSync.cy.js         # Main E2E test with DB & Network assertions
-│   │   ├── complexSocialFlow.cy.js   # Multi-page DOM traversal & Regex assertions
-│   │   └── dataDrivenComments.cy.js  # Data-Driven Testing using SQLite records
+│   │   ├── authentication.cy.js      # Session timeouts & IDOR security validation
+│   │   ├── comments.cy.js            # XSS injection, state isolation, forced edge-cases
+│   │   ├── socialFeatures.cy.js      # Toggle states, mathematical UI assertions, Favorites
+│   │   ├── feedAndFiltering.cy.js    # Full data mocking, tab transitions, Pagination logic
+│   │   ├── performanceAndStress.cy.js# Concurrent Fetch, Rate Limiting, 10MB Payload, 3G Throttling
+│   │   └── userManagement.cy.js      # Follow/Unfollow component isolation
 │   ├── support/
 │   │   ├── commands.js               # Custom commands (e.g., apiLogin)
-│   │   └── e2e.js                    # Global configuration
+│   │   └── e2e.js                    # Global configuration hooks
 ├── cypress.config.js                 # Node events, DB connection tasks (queryDb, insertLog)
 ├── conduit_test_data.db              # Local SQLite database
 └── package.json                      # Node.js dependencies
