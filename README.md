@@ -3,7 +3,7 @@
 ## 🎯 Overview
 This repository contains an advanced, enterprise-grade End-to-End (E2E) test automation framework built with **Cypress** and **JavaScript**. Designed for the Conduit (RealWorld) application, this project demonstrates a highly robust architecture by integrating a local **SQLite** database via Cypress Node Events. It moves beyond simple UI testing by incorporating database seeding, Data-Driven Testing (DDT), pure API validation, network traffic interception, and automated test reporting back to the database.
 
-![Proje Görüntülenmesi](https://komarev.com/ghpvc/?username=batugulsecgin-conduit-cypress-automation&color=blue)
+![Proje Görüntülenmesi](https://komarev.com/ghpvc/?username=batugulsecgin-conduit-cypress-automation)
 
 ## 🛠️ Tech Stack & Tools
 - **Core Framework:** Cypress (v13+)
